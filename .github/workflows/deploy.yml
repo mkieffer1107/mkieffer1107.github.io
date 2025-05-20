@@ -50,8 +50,10 @@ jobs:
         run: npm install -g pnpm
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+        working-directory: ./frontend
       - name: Build frontend
         run: pnpm run build
+        working-directory: ./frontend
 
       # Upload as a Pages artifact (now v3)
       - name: Upload Pages Artifact
