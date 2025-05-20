@@ -1,0 +1,32 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rand = "0.9.1"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+wasm-bindgen = { version = "0.2.100", features = ["serde-serialize"] }
+serde-wasm-bindgen = "0.6.5"
+
+# for wasm rng using js functions, https://docs.rs/getrandom/0.3.3/getrandom/#webassembly-support
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+
+# for wasm logging in browser during dev
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# std::time::{Duration, Instant} panics in wasm, so need to use this (alternatively could maybe do web-sys)
+web-time = "1.1.0"
+
+# Add or update web-sys to include the "console" feature
+web-sys = { version = "0.3", features = ["console"] }
+
+# If you have a specific version of web-sys already, adjust accordingly, e.g.:
+# web-sys = { version = "0.3.60", features = ["console"] }
+
+[features]
+default = ["console_error_panic_hook"]
