@@ -1,0 +1,14 @@
+# Rust build artifacts
+rust/target/
+
+# WASM package output
+frontend/lib/pkg/
+
+# macOS specific
+.DS_Store
+
+# Next.js build output
+frontend/.next/
+
+# Node modules
+frontend/node_modules/ 
