@@ -16,22 +16,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      
+
+      # Configure the Pages environment
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
       # --- Rust and Wasm Setup ---
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           components: rustfmt, clippy
+
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      # --- Build Rust Wasm ---
       - name: Build Wasm package (runtime)
         working-directory: ./rust
         run: wasm-pack build --target web --out-dir ../public/pkg --out-name mcts_game_pkg
+
       - name: Create lib/pkg for Wasm types
         run: mkdir -p ./lib/pkg
+
       - name: Copy Wasm package for types
         run: cp -r ./public/pkg/. ./lib/pkg/
 
@@ -39,18 +45,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' 
+          node-version: '18'
       - name: Install pnpm
         run: npm install -g pnpm
-      
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
-      
       - name: Build frontend
         run: pnpm run build
-      
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+
+      # Upload as a Pages artifact (now v3)
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
@@ -63,4 +68,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
