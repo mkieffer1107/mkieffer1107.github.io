@@ -33,13 +33,13 @@ jobs:
 
       - name: Build Wasm package (runtime)
         working-directory: ./rust
-        run: wasm-pack build --target web --out-dir ../public/pkg --out-name mcts_game_pkg
+        run: wasm-pack build --target web --out-dir ../frontend/public/pkg --out-name mcts_game_pkg
 
       - name: Create lib/pkg for Wasm types
-        run: mkdir -p ./lib/pkg
+        run: mkdir -p ./frontend/lib/pkg
 
       - name: Copy Wasm package for types
-        run: cp -r ./public/pkg/. ./lib/pkg/
+        run: cp -r ./frontend/public/pkg/. ./frontend/lib/pkg/
 
       # --- Node.js and pnpm Setup ---
       - name: Setup Node.js
@@ -59,7 +59,7 @@ jobs:
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: ./frontend/out
 
   deploy:
     environment:
