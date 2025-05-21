@@ -37,11 +37,18 @@ jobs:
       - name: Build Wasm package (runtime)
         working-directory: ./rust
         run: |
-          wasm-pack build --release --target web --out-dir ../frontend/public/pkg --out-name mcts_game_pkg
-          # Optimize the wasm file
+          wasm-pack build --release --target web \
+            --out-dir ../frontend/public/pkg \
+            --out-name mcts_game_pkg
+
+      - name: Optimize Wasm binary
+        working-directory: ./rust # Assuming wasm-opt paths are relative to this
+        run: |
           if [ -f "../frontend/public/pkg/mcts_game_pkg_bg.wasm" ]; then
             echo "Optimizing Wasm binary with wasm-opt..."
-            wasm-opt -Oz ../frontend/public/pkg/mcts_game_pkg_bg.wasm -o ../frontend/public/pkg/mcts_game_pkg_bg.wasm
+            wasm-opt -Oz \
+              ../frontend/public/pkg/mcts_game_pkg_bg.wasm \
+              -o ../frontend/public/pkg/mcts_game_pkg_bg.wasm
             echo "Wasm optimization complete."
           else
             echo "Wasm binary not found, skipping optimization."

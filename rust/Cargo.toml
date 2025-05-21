@@ -25,8 +25,6 @@ web-time = "1.1.0"
 # Add or update web-sys to include the "console" feature
 web-sys = { version = "0.3", features = ["console"] }
 
-# If you have a specific version of web-sys already, adjust accordingly, e.g.:
-# web-sys = { version = "0.3.60", features = ["console"] }
 
 [features]
 default = ["console_error_panic_hook"]
