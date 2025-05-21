@@ -45,8 +45,10 @@ jobs:
         working-directory: ./rust # Assuming wasm-opt paths are relative to this
         run: |
           if [ -f "../frontend/public/pkg/mcts_game_pkg_bg.wasm" ]; then
-            echo "Optimizing Wasm binary with wasm-opt..."
-            wasm-opt -Oz \
+            echo "Optimizing Wasm binary with wasm-opt (bulk-memory enabled)..."
+            wasm-opt \
+              --enable-bulk-memory \
+              -Oz \
               ../frontend/public/pkg/mcts_game_pkg_bg.wasm \
               -o ../frontend/public/pkg/mcts_game_pkg_bg.wasm
             echo "Wasm optimization complete."
