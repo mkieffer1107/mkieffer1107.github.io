@@ -48,6 +48,8 @@ jobs:
             echo "Optimizing Wasm binary with wasm-opt (bulk-memory enabled)..."
             wasm-opt \
               --enable-bulk-memory \
+              --enable-sign-ext \
+              --enable-nontrapping-float-to-int \
               -Oz \
               ../frontend/public/pkg/mcts_game_pkg_bg.wasm \
               -o ../frontend/public/pkg/mcts_game_pkg_bg.wasm
