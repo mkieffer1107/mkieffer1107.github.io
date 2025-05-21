@@ -196,6 +196,7 @@ export default function Home() {
                 />
               ) : currentGame === "othello" ? (
                 <Othello
+                  key={resetTrigger}
                   aiMode={aiMode}
                   thinkingTime={thinkingTime}
                   simulationCount={simulationCount}

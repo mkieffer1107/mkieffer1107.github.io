@@ -12,3 +12,6 @@ frontend/.next/
 
 # Node modules
 frontend/node_modules/ 
+
+# local static site
+docs

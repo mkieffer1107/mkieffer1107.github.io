@@ -31,9 +31,21 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: Install Binaryen (for wasm-opt)
+        run: sudo apt-get update && sudo apt-get install -y binaryen
+
       - name: Build Wasm package (runtime)
         working-directory: ./rust
-        run: wasm-pack build --target web --out-dir ../frontend/public/pkg --out-name mcts_game_pkg
+        run: |
+          wasm-pack build --release --target web --out-dir ../frontend/public/pkg --out-name mcts_game_pkg
+          # Optimize the wasm file
+          if [ -f "../frontend/public/pkg/mcts_game_pkg_bg.wasm" ]; then
+            echo "Optimizing Wasm binary with wasm-opt..."
+            wasm-opt -Oz ../frontend/public/pkg/mcts_game_pkg_bg.wasm -o ../frontend/public/pkg/mcts_game_pkg_bg.wasm
+            echo "Wasm optimization complete."
+          else
+            echo "Wasm binary not found, skipping optimization."
+          fi
 
       - name: Create lib/pkg for Wasm types
         run: mkdir -p ./frontend/lib/pkg

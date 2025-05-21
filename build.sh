@@ -66,9 +66,26 @@ echo "   Target Output Directory for Types (relative to project root): '${WASM_L
 # Build for runtime (into frontend/public/pkg)
 (
     cd "${RUST_CRATE_DIR}" && \
-    wasm-pack build --target web --out-dir "${WASM_PACK_OUT_DIR_PARAM_PUBLIC}" --out-name "${WASM_MODULE_NAME}"
+    wasm-pack build --release --target web --out-dir "${WASM_PACK_OUT_DIR_PARAM_PUBLIC}" --out-name "${WASM_MODULE_NAME}"
 )
 echo "✅📦 WebAssembly package built for runtime in: '${WASM_PUBLIC_DESTINATION_FROM_ROOT}'"
+
+# --- Optimize Wasm with wasm-opt (if available) ---
+echo ""
+echo "⚙️ Attempting to optimize Wasm with wasm-opt..."
+WASM_FILE_TO_OPTIMIZE="${WASM_PUBLIC_DESTINATION_FROM_ROOT}/${WASM_MODULE_NAME}_bg.wasm"
+if command -v wasm-opt &> /dev/null; then
+    if [ -f "${WASM_FILE_TO_OPTIMIZE}" ]; then
+        echo "   Optimizing '${WASM_FILE_TO_OPTIMIZE}' with wasm-opt -Oz (for maximum size reduction)..."
+        wasm-opt -Oz "${WASM_FILE_TO_OPTIMIZE}" -o "${WASM_FILE_TO_OPTIMIZE}" # Optimize in place
+        echo "   ✅ Wasm optimization successful."
+    else
+        echo "   ⚠️ Wasm file '${WASM_FILE_TO_OPTIMIZE}' not found. Skipping wasm-opt."
+    fi
+else
+    echo "   ⚠️ wasm-opt command not found. Skipping Wasm optimization."
+    echo "      For smaller Wasm binaries, install Binaryen: https://github.com/WebAssembly/binaryen"
+fi
 
 # Create the lib/pkg directory if it doesn't exist
 mkdir -p "${WASM_LIB_DESTINATION_FROM_ROOT}"

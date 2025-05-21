@@ -105,12 +105,22 @@ export default function Othello({
       // The main game cleanup for unmount is now handled by the resetTrigger useEffect's cleanup
       // if the resetTrigger is what unmounts/replaces the component, or if no reset trigger involved,
       // the game created by initializeGame will be freed if component is simply removed.
+      // Ensure any pending AI operation is cancelled if the component unmounts while AI is thinking.
+      // This might be redundant if cancelAI is also in game.free() or similar,
+      // but good for component-level cleanup.
+      if (gameRef.current && isThinking) { // Check gameRef.current specifically
+          // console.log("[Othello.tsx] Unmount: AI is thinking, attempting to cancel.");
+          // gameRef.current.cancelAiThinking(); // Hypothetical method on game instance
+          cancelAI(); // Use existing cancelAI which updates component state
+      }
     };
-  }, []);
+  }, [isThinking, cancelAI]); // Added isThinking and cancelAI to dependencies to ensure cancel is fresh
 
 
   const initializeGame = async () => {
     // console.log("[Othello.tsx] initializeGame: Called");
+    const forResetCycle = currentResetTriggerRef.current; // Capture reset cycle at the start of this specific invocation
+
     setIsGameReady(false)
     if (typeof onStatusChange === 'function') {
       onStatusChange(<GameStatusDisplay statusKey="loading" color={LOADING_COLOR} />, LOADING_COLOR)
@@ -120,65 +130,83 @@ export default function Othello({
     
     // The useEffect for resetTrigger should ideally handle freeing the *previous* game instance.
     // This block ensures that if initializeGame is called and gameRef.current still holds an old instance, it's freed.
+    // This might be redundant if resetTrigger's cleanup is reliable, but acts as a safeguard.
     if (gameRef.current) {
-      console.warn(`[Othello.tsx] initializeGame: gameRef.current was not null. Freeing existing instance (ID: ${gameRef.current['instanceId']}).`);
-      gameRef.current.free();
+      // console.warn(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): gameRef.current was not null. Freeing existing instance (ID: ${gameRef.current['instanceId']}).`);
+      // This free should ideally be for the instance associated with a *previous* cycle.
+      // The main `useEffect[resetTrigger]` cleanup handles freeing the game instance tied to the *previous* `resetTrigger` value.
+      // Direct call here might be risky if it frees the instance meant for the *current* cycle if not careful.
+      // Let's rely on the useEffect cleanup and only nullify refs/state here.
     }
-    gameRef.current = null; // Explicitly nullify before creating a new one.
-    setGame(null); // Clear the state game variable, which also triggers gameRef update via useEffect.
+    // Safely nullify references and state before creating a new game.
+    gameRef.current = null; 
+    setGame(null); 
     
     if (isThinking) {
-        // console.log("[Othello.tsx] initializeGame: Cancelling AI as part of game initialization.");
+        // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): Cancelling AI as part of game initialization.`);
         cancelAI();
     }
 
     const newGameInstance = new OthelloGame()
-    // Assign to gameRef.current immediately. The game object is created, but not yet fully initialized (WASM might still load).
-    // This ensures gameRef.current is populated when isGameReady becomes true.
+    // Assign to gameRef.current immediately. This is critical.
+    // If this initializeGame call becomes stale, this ref will be overwritten by the newer call.
     gameRef.current = newGameInstance;
-    // console.log(`[Othello.tsx] initializeGame: Created new OthelloGame instance (ID: ${newGameInstance['instanceId']}). Assigned to gameRef.current.`);
+    // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): Created new OthelloGame instance (ID: ${newGameInstance['instanceId']}). Assigned to gameRef.current.`);
+    
     try {
+      // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): Calling newGameInstance.initialize().`);
       await newGameInstance.initialize()
+      // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): newGameInstance.initialize() completed.`);
       
-      if (!isMountedRef.current) {
-        // console.log("[Othello.tsx] initializeGame: Component unmounted during new game initialization. Freeing new instance.");
+      if (!isMountedRef.current || currentResetTriggerRef.current !== forResetCycle) {
+        console.log(`[Othello.tsx] initializeGame: Aborting stale initialization for cycle ${forResetCycle} (current is ${currentResetTriggerRef.current}, mounted: ${isMountedRef.current}). Freeing new instance (ID: ${newGameInstance['instanceId']}).`);
         newGameInstance.free();
-        if (gameRef.current === newGameInstance) { // Check before nullifying
-          gameRef.current = null; 
-        }
+        // If this was the instance in gameRef.current, and this call is stale, the newer call would have already updated gameRef.current.
+        // Avoid nullifying gameRef.current here if it might belong to the active cycle.
+        // if (gameRef.current === newGameInstance) { gameRef.current = null; } // This might be too aggressive
         return;
       }
-      // console.log(`[Othello.tsx] initializeGame: New game instance (ID: ${newGameInstance['instanceId']}) initialized successfully.`);
-      setGame(newGameInstance) // This will trigger gameRef.current update via its own useEffect
+      // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): New game instance (ID: ${newGameInstance['instanceId']}) initialized successfully and is current.`);
+      
+      setGame(newGameInstance) 
       updateBoardAndScoresFromGame(newGameInstance)
       setLegalMoves(newGameInstance.getValidMoves())
       
       const initialPlayer = newGameInstance.getCurrentPlayer()
       setIsPlayerTurn(initialPlayer === PLAYER_PIECE_COLOR_NAME)
-      setWinner(null)
-      // setIsThinking(false); // Already handled by cancelAI if it was called
-      onGameOver(false)
-      setIsGameReady(true) // Now, gameRef.current is populated, so loading condition will pass.
-      // console.log("[Othello.tsx] initializeGame: Set isGameReady to true.");
+      setWinner(null) // Explicitly reset winner state
+      onGameOver(false) // Explicitly reset parent's game over state
+      setIsGameReady(true) 
+      // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): Set isGameReady to true.`);
 
       updateStatusDisplay(newGameInstance);
 
       if (initialPlayer === BOT_PIECE_COLOR_NAME && !newGameInstance.isGameOver()) {
+        // console.log(`[Othello.tsx] initializeGame (cycle ${forResetCycle}): Bot's turn. Setting isPlayerTurn to false.`);
         setIsPlayerTurn(false); 
       }
 
     } catch (error) {
-      console.error("[Othello.tsx] Failed to initialize Othello WASM game:", error)
+      console.error(`[Othello.tsx] Failed to initialize Othello WASM game (cycle ${forResetCycle}):`, error)
+      
+      if (!isMountedRef.current || currentResetTriggerRef.current !== forResetCycle) {
+        console.warn(`[Othello.tsx] initializeGame: Error occurred in a stale initialization cycle ${forResetCycle}. Current cycle is ${currentResetTriggerRef.current}. Error:`, error);
+        newGameInstance.free(); // Free the instance from this stale, failed cycle.
+        return;
+      }
+
+      // Error is for the current cycle
       if (typeof onStatusChange === 'function') {
         onStatusChange(<GameStatusDisplay statusKey="error" color={ERROR_COLOR} message="Error loading Othello! 😭 Please refresh."/>, ERROR_COLOR)
       } else {
         console.warn("Othello.tsx: onStatusChange is not a function during initializeGame (error status).");
       }
-      newGameInstance.free(); // Free the instance that failed initialization.
-      if (gameRef.current === newGameInstance) { // Ensure we only nullify if it's the current one.
+      newGameInstance.free(); 
+      if (gameRef.current === newGameInstance) { 
         gameRef.current = null;
       }
-      setGame(null) // Ensure game state is null on error.
+      setGame(null) 
+      // isGameReady remains false, set at the start of initializeGame.
     }
   }
   
@@ -341,6 +369,10 @@ export default function Othello({
         // console.log(`[Othello.tsx] makeAIMove finally block (Instance ID: ${currentGameInstance ? currentGameInstance['instanceId'] : 'N/A'}). Setting isThinking to false.`);
         setIsThinking(false)
         onBotThinkingEnd()
+      } else {
+        // console.log(`[Othello.tsx] makeAIMove finally block: Not current cycle or unmounted. (startingResetTrigger: ${startingResetTrigger}, currentResetTriggerRef.current: ${currentResetTriggerRef.current}, isMounted: ${isMountedRef.current})`);
+        // Potentially, if isThinking was true for this stale/unmounted operation, ensure onBotThinkingEnd() was called or state is otherwise clean.
+        // However, cancelAI in initializeGame should handle isThinking for new games.
       }
     }
   }

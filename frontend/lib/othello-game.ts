@@ -146,8 +146,12 @@ export class OthelloGame {
 
     free(): void {
         // console.log(`[OthelloGame ${this.instanceId}] free() called.`);
-        this.engine.free();
-        this.engine.terminateWorker();
+        try {
+            this.engine.free();
+            this.engine.terminateWorker();
+        } catch (e) {
+            console.error(`[OthelloGame ${this.instanceId}] Error during free:`, e);
+        }
         // console.log(`[OthelloGame ${this.instanceId}] Engine free() and terminateWorker() called.`);
     }
 }
